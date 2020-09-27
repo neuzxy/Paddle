@@ -200,21 +200,21 @@ void FusedSeqpoolCVM(const paddle::platform::Place &place,
 
   auto gpu_input_ptr =
       memory::AllocShared(place, input_data.size() * sizeof(T *));
-  float **gpu_input_values = reinterpret_cast<T **>(gpu_input_ptr->ptr());
+  T **gpu_input_values = reinterpret_cast<T **>(gpu_input_ptr->ptr());
   cudaMemcpyAsync(gpu_input_values, input_data.data(),
                   input_data.size() * sizeof(T *), cudaMemcpyHostToDevice,
                   stream);
 
   auto gpu_output_ptr =
       memory::AllocShared(place, output_data.size() * sizeof(T *));
-  float **gpu_output_values = reinterpret_cast<T **>(gpu_output_ptr->ptr());
+  T **gpu_output_values = reinterpret_cast<T **>(gpu_output_ptr->ptr());
   cudaMemcpyAsync(gpu_output_values, output_data.data(),
                   output_data.size() * sizeof(T *), cudaMemcpyHostToDevice,
                   stream);
 
   auto gpu_seqpool_output_ptr =
       memory::AllocShared(place, seqpool_output_data.size() * sizeof(T *));
-  float **gpu_seqpool_output_values =
+  T **gpu_seqpool_output_values =
       reinterpret_cast<T **>(gpu_seqpool_output_ptr->ptr());
   cudaMemcpyAsync(gpu_seqpool_output_values, seqpool_output_data.data(),
                   seqpool_output_data.size() * sizeof(T *),
@@ -262,7 +262,7 @@ static void FusedSeqpoolCVMFunctor(const framework::ExecutionContext &ctx) {
     auto lod_level = lod.size();
     int batch_size = lod[lod_level - 1].size() - 1;  // -1 to real batch size
 
-    input_data[i] = reinterpret_cast<const float *>(input->data<T>());
+    input_data[i] = reinterpret_cast<const T *>(input->data<T>());
     auto *output = outputs[i];
     if (use_cvm) {
       output->Resize({batch_size, embedding_size});
@@ -274,8 +274,6 @@ static void FusedSeqpoolCVMFunctor(const framework::ExecutionContext &ctx) {
     data_lens[i] = lod[lod_level - 1].size() - 1;
     lods_data[i] = lod[lod_level - 1].CUDAData(ctx.GetPlace());
 
-    LoDTensor seqpool_output_tensor;
-    seqpool_outputs.push_back(seqpool_output_tensor);
     seqpool_output_data[i] =
         reinterpret_cast<T *>(seqpool_outputs[i].mutable_data<T>(
             {batch_size, embedding_size}, ctx.GetPlace()));
@@ -338,30 +336,28 @@ void FusedSeqpoolCVMGrad(const paddle::platform::Place &place,
 
   auto gpu_out_grads_ptr =
       memory::AllocShared(place, out_grads_data.size() * sizeof(T *));
-  float **gpu_out_grads_values =
-      reinterpret_cast<float **>(gpu_out_grads_ptr->ptr());
+  T **gpu_out_grads_values = reinterpret_cast<T **>(gpu_out_grads_ptr->ptr());
   cudaMemcpyAsync(gpu_out_grads_values, out_grads_data.data(),
                   out_grads_data.size() * sizeof(T *), cudaMemcpyHostToDevice,
                   stream);
 
   auto gpu_out_seqpool_grads_ptr =
       memory::AllocShared(place, out_seqpool_grads_data.size() * sizeof(T *));
-  float **gpu_out_seqpool_grads_values =
-      reinterpret_cast<float **>(gpu_out_seqpool_grads_ptr->ptr());
+  T **gpu_out_seqpool_grads_values =
+      reinterpret_cast<T **>(gpu_out_seqpool_grads_ptr->ptr());
   cudaMemcpyAsync(gpu_out_seqpool_grads_values, out_seqpool_grads_data.data(),
                   out_seqpool_grads_data.size() * sizeof(T *),
                   cudaMemcpyHostToDevice, stream);
 
   auto gpu_in_grads_ptr =
       memory::AllocShared(place, in_grads_data.size() * sizeof(T *));
-  float **gpu_in_grads_values =
-      reinterpret_cast<float **>(gpu_in_grads_ptr->ptr());
+  T **gpu_in_grads_values = reinterpret_cast<T **>(gpu_in_grads_ptr->ptr());
   cudaMemcpyAsync(gpu_in_grads_values, in_grads_data.data(),
                   in_grads_data.size() * sizeof(T *), cudaMemcpyHostToDevice,
                   stream);
 
   auto gpu_cvm_ptr = memory::AllocShared(place, cvm_data.size() * sizeof(T *));
-  float **gpu_cvm_values = reinterpret_cast<T **>(gpu_cvm_ptr->ptr());
+  T **gpu_cvm_values = reinterpret_cast<T **>(gpu_cvm_ptr->ptr());
   cudaMemcpyAsync(gpu_cvm_values, cvm_data.data(),
                   cvm_data.size() * sizeof(T *), cudaMemcpyHostToDevice,
                   stream);
@@ -415,8 +411,6 @@ static void FusedSeqpoolCVMGradFunctor(const framework::ExecutionContext &ctx) {
     data_lengths[i] = lod[lod_level - 1].size() - 1;
     cvm_data[i] = reinterpret_cast<const T *>(cvm->data<T>());
 
-    LoDTensor out_seqpool_grad_tensor;
-    out_seqpool_grads.push_back(out_seqpool_grad_tensor);
     out_seqpool_grads_data[i] =
         reinterpret_cast<T *>(out_seqpool_grads[i].mutable_data<T>(
             {batch_size, embedding_size}, ctx.GetPlace()));
